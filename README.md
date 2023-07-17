@@ -43,10 +43,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 2. This repository contains everything you need to get started, wallet connection, api calls for assets and pairs, and almost all components we are using at this moment.
 3. Some libraries are obligated to use (Chakra UI, Wagmi and Zustand), but you can add any other library you want in top of these.
 4. Code must be in Typescript.
-5. The goal in this test is to create a card component that permits users to lock their Vara tokens in order to get a "receipt" NFT called veVARA. The design of the component is already done (URL)
+5. The goal in this test is to create a card component that permits users to lock their Vara tokens in order to get a "receipt" NFT called veVARA. The design of the component is already done (see `public/Get veVara Desing.png`)
 6. The component must be responsive.
 7. Contract addresses are already in the code, also ABIs.
 8. The function in order to lock tokens is already in the code (`create_lock`) under Voting Escrow contract (`VE_TOKEN_ADDRESS`, `VE_TOKEN_ABI` constants).
 9. The component must have text inputs for both amount of tokens to lock and duration of the lock. Also we need some buttons to set the duration to 1 week, 1 month,  1 year and 4 years, also same for the amount: 25%, 50%, 75%, 100%.
 10. The component must be able to show the amount of tokens locked, the amount of veVARA tokens the user will get, and the time remaining to unlock the tokens.
-11. If you have any questions regarding ve(3,3) or the task itself, please contact us through the Discord group.
+11. If you have any questions regarding ve(3,3) or the task itself, please contact us through the Discord/Telegram group.
+12. In order to send your test, please create a pull request to this repository with your code.
