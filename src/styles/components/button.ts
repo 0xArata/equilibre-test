@@ -67,7 +67,7 @@ const outlineVariant = defineStyle(props => {
     },
     _active: {
       color: `${c}.500`,
-      background: 'blue.500',
+      background: 'blue.800',
     },
   };
 });
