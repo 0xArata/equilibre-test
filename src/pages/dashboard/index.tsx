@@ -104,7 +104,7 @@ const Dashboard = () => {
             Your voting power will be
           </Text>
           <Text color={'#70DD88'} fontWeight={400}>
-            {veVaraAmount.toPrecision(2)} veVARA
+            {veVaraAmount.toFixed(2)} veVARA
           </Text>
         </Flex>
 

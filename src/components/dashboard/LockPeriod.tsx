@@ -85,6 +85,7 @@ const LockPeriod = () => {
               letterSpacing={1.95}
               onClick={() => handleLockPeriod(value)}
               borderRadius={11}
+              color={value === lockPeriod ? '#FFBD59' : '#fff'}
               border={
                 value === lockPeriod
                   ? '1px solid #FFBD59;'
