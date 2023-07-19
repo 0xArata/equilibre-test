@@ -1,4 +1,4 @@
-import EquilibreCard from '@/components/core/Card';
+// import EquilibreCard from '@/components/core/Card';
 import {
   Box,
   Button,
