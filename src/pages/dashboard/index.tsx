@@ -11,33 +11,47 @@ import {
 import { getColor } from '@chakra-ui/theme-tools';
 import { theme as defaultTheme } from '@chakra-ui/theme';
 import moment from 'moment';
+import { useAccount } from 'wagmi';
 
 import { CONSTANTS_VEVARA } from '@/config/constants';
 import { ILockDuration, IInputPercentage, Token } from '@/interfaces';
 import generateToast from '@/components/toast/generateToast';
 import { useBaseAssetStore } from '@/store/baseAssetsStore';
 import { GOV_TOKEN_ADDRESS } from '@/config/company/contracts';
-import useVaraBalance from '@/hooks/useVaraBalance';
-import { getBalanceInEther } from '@/utils/formatBalance';
+import { getBalanceInEther, getBalanceInWei } from '@/utils/formatBalance';
+import { useVaraTokenStore } from '@/store/varaTokenStore';
+import { CONTRACTS } from '@/config/company';
+import callContractWait from '@/lib/callContractWait';
 
 const { VALUE_PRECENTAGES, LOCK_DURATIONS } = CONSTANTS_VEVARA;
 
 const Dashboard = () => {
-  const [lockAmount, setLockAmouont] = useState<string>('');
+  const [lockAmount, setLockAmount] = useState<string>('');
   const [unlockDate, setUnlockDate] = useState<string>();
   const [varaPrice, setVaraPrice] = useState<number>(0);
+  const [isLoading, setLoading] = useState<boolean>(false);
+  const [amountError, setAmountError] = useState<string>('');
 
+  const { address } = useAccount();
   const { baseAssets, getBaseAsset } = useBaseAssetStore(state => ({
     baseAssets: state.baseAssets,
     getBaseAsset: state.actions.getBaseAsset,
   }));
-  const userVaraBalanceInWei = useVaraBalance();
-  const userVaraBalance = getBalanceInEther(userVaraBalanceInWei);
+  const {
+    balance: userVaraBalanceInWei,
+    allowance,
+    fetBalanceAndAllowance,
+  } = useVaraTokenStore(state => ({
+    balance: state.balance,
+    allowance: state.veVaraAllowance,
+    fetBalanceAndAllowance: state.actions.fetBalanceAndAllowance,
+  }));
 
-  const lockedDays = Math.floor(
-    moment.duration(moment(unlockDate).diff(moment())).asDays()
-  );
-  const votingPower = (Number(lockAmount) * (lockedDays + 1)) / (4 * 365);
+  const userVaraBalance = getBalanceInEther(userVaraBalanceInWei);
+  const lockDuration = moment.duration(moment(unlockDate).diff(moment()));
+  const lockDays = Math.floor(lockDuration.asDays());
+  const votingPower = (Number(lockAmount) * (lockDays + 1)) / (4 * 365);
+  const lockAmountInWei = getBalanceInWei(lockAmount || '0');
 
   useEffect(() => {
     onSelectLockDuration(LOCK_DURATIONS[3]);
@@ -50,11 +64,19 @@ const Dashboard = () => {
     }
   }, [baseAssets.length]);
 
+  useEffect(() => {
+    setAmountError(
+      lockAmountInWei.gt(userVaraBalanceInWei)
+        ? 'Greater than your available balance'
+        : ''
+    );
+  }, [lockAmount]);
+
   // select vaule percentage
   const onSelectValuePercentage = (newValuePercentage: IInputPercentage) => {
     const newLockAmount = (userVaraBalance * newValuePercentage.value) / 100;
     if (Number(newLockAmount) !== Number(lockAmount)) {
-      setLockAmouont(String(newLockAmount));
+      setLockAmount(String(newLockAmount));
     }
   };
 
@@ -74,7 +96,7 @@ const Dashboard = () => {
     const newLockAmount = e.target.value;
     if (Number(newLockAmount) < 0) return;
 
-    setLockAmouont(newLockAmount);
+    setLockAmount(newLockAmount);
   };
 
   // change unlock date
@@ -90,6 +112,56 @@ const Dashboard = () => {
     }
 
     setUnlockDate(selectedDate);
+  };
+
+  // lock vara to get veVARA
+  const onLockVara = async () => {
+    if (!!amountError) return;
+
+    if (allowance.lt(lockAmountInWei)) {
+      // 1. implement approve logic
+      setLoading(true);
+
+      const txObj = {
+        address: CONTRACTS.GOV_TOKEN_ADDRESS,
+        abi: CONTRACTS.GOV_TOKEN_ABI,
+        functionName: 'approve',
+        args: [CONTRACTS.VE_TOKEN_ADDRESS, lockAmountInWei],
+      };
+      const toastObj = {
+        title: 'Approve',
+        description: 'Vara Token approved',
+      };
+      const result = await callContractWait(txObj, toastObj);
+
+      if (result) {
+        await fetBalanceAndAllowance(address);
+      }
+
+      setLoading(false);
+    } else {
+      // 2. implement 'create_lock' logic
+      setLoading(true);
+
+      const txObj = {
+        address: CONTRACTS.VE_TOKEN_ADDRESS,
+        abi: CONTRACTS.VE_TOKEN_ABI,
+        functionName: 'create_lock',
+        args: [lockAmountInWei, Math.floor(lockDuration.asSeconds())],
+      };
+      const toastObj = {
+        title: 'Mint VeVara',
+        description: 'New VeVara minted',
+      };
+      const result = await callContractWait(txObj, toastObj);
+
+      if (result) {
+        await fetBalanceAndAllowance(address);
+      }
+
+      setLoading(false);
+    }
+    setLockAmount('');
   };
 
   return (
@@ -149,6 +221,7 @@ const Dashboard = () => {
           <Flex justifyContent={'space-between'} alignItems={'center'} mt="8px">
             <Box>
               <Input
+                isInvalid={lockAmountInWei.gt(userVaraBalanceInWei)}
                 type="number"
                 variant={'flushed'}
                 placeholder="0.00"
@@ -160,6 +233,14 @@ const Dashboard = () => {
                 value={lockAmount}
                 onChange={onChangeLockAmount}
               />
+              <Text
+                letterSpacing="1.3px"
+                color="purple.300"
+                fontWeight="500"
+                fontSize="10px"
+                mt="4px">
+                {amountError}
+              </Text>
               <Text
                 letterSpacing="1.3px"
                 color="rgba(255, 255, 255, 0.50)"
@@ -215,7 +296,7 @@ const Dashboard = () => {
             return (
               <Button
                 key={row.value}
-                isActive={row.value === lockedDays + 1}
+                isActive={row.value === lockDays + 1}
                 colorScheme="yellow"
                 variant={'outline'}
                 w={'100%'}
@@ -258,7 +339,7 @@ const Dashboard = () => {
             Amount of days locked
           </Text>
           <Text color="green.500" textAlign={'end'}>
-            {lockedDays}
+            {lockDays}
           </Text>
         </Flex>
       </Flex>
@@ -270,7 +351,11 @@ const Dashboard = () => {
           fontSize={25}
           fontWeight={400}
           py={'12px'}
-          h={58}>
+          h={58}
+          onClick={onLockVara}
+          isLoading={isLoading}
+          loadingText={allowance.lt(lockAmountInWei) ? 'Approve' : 'Mint'}
+          isDisabled={!!amountError}>
           Create New veNFT
         </Button>
       </Box>
