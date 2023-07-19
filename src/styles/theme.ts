@@ -121,7 +121,8 @@ const styles = {
   global: (props: StyleFunctionProps) => ({
     body: {
       backgroundImage:
-        'linear-gradient(156.7deg, #0D142E 4.67%, #1F2E64 53.14%, #924C91 126.09%) no-repeat;',
+        // 'linear-gradient(156.7deg, #0D142E 4.67%, #1F2E64 53.14%, #924C91 126.09%) no-repeat;',
+        'linear-gradient(172deg, #0D142E 9.45%, #1F2E64 45.60%, #924C91 100%);',
       backgroundSize: '200% 250%',
       animation: `${gradient} 10s ease infinite`,
     },
