@@ -14,6 +14,7 @@ import { switchTheme } from './components/switch';
 import { tabsTheme } from './components/tabs';
 import { radioTheme } from './components/radio';
 import { tooltipTheme } from './components/tooltip';
+import { cardTheme } from './components/card';
 
 const gradient = keyframes({
   '0%': {
@@ -137,6 +138,7 @@ const components = {
   Tabs: tabsTheme,
   Divider: dividerTheme,
   Box: boxTheme,
+  Card: cardTheme,
   Popover: popoverTheme,
   Tooltip: tooltipTheme,
 };

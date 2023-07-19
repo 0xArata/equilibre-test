@@ -40,6 +40,14 @@ const outlineNumberRounded = defineStyle({
   },
 });
 
+const transparentVariant = defineStyle({
+  field: {
+    border: 'none',
+    bg: 'transparent',
+    textAlign: 'left',
+  },
+});
+
 const xl = defineStyle({
   fontSize: 'lg',
   px: '8',
@@ -55,6 +63,7 @@ export const inputTheme = defineMultiStyleConfig({
   sizes,
   variants: {
     primary: customVariant,
+    transparent: transparentVariant,
   },
   defaultProps: {
     colorScheme: 'yellow',
