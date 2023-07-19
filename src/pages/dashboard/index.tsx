@@ -27,8 +27,9 @@ const Dashboard = () => {
   const [unlockDate, setUnlockDate] = useState<string>();
   const [varaPrice, setVaraPrice] = useState<number>(0);
 
-  const { baseAssets } = useBaseAssetStore(state => ({
+  const { baseAssets, getBaseAsset } = useBaseAssetStore(state => ({
     baseAssets: state.baseAssets,
+    getBaseAsset: state.actions.getBaseAsset,
   }));
   const userVaraBalanceInWei = useVaraBalance();
   const userVaraBalance = getBalanceInEther(userVaraBalanceInWei);
@@ -43,10 +44,7 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    const varaAsset: Token | undefined = baseAssets.find(
-      (row: Token) =>
-        row.address.toLowerCase() === GOV_TOKEN_ADDRESS.toLowerCase()
-    );
+    const varaAsset: Token | undefined = getBaseAsset(GOV_TOKEN_ADDRESS);
     if (varaAsset) {
       setVaraPrice(Number(varaAsset?.price) || 0);
     }
