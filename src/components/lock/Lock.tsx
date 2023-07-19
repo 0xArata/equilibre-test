@@ -31,7 +31,7 @@ import { ethers } from 'ethers';
 
 const Lock = () => {
   const [percent, setPercent] = useState(0);
-
+  const [loading, setLoading] = useState(false);
   const {
     price,
     amount,
@@ -75,6 +75,7 @@ const Lock = () => {
     const parsedAmount = ethers.utils.parseUnits(balance.toString(), 'ether');
     const seconds = BigInt(days * 86400);
     try {
+      setLoading(true);
       await writeErc20({
         address: GOV_TOKEN_ADDRESS,
         functionName: 'approve',
@@ -95,6 +96,8 @@ const Lock = () => {
       );
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -199,7 +202,11 @@ const Lock = () => {
             <Text color={'gray.500'}>Amount of days locked</Text>
             <Text color={'green.500'}>{days}</Text>
           </HStack>
-          <Button width={'full'} variant={'primary'} onClick={onSubmit}>
+          <Button
+            width={'full'}
+            variant={'primary'}
+            onClick={onSubmit}
+            isLoading={loading}>
             Create New veNFT
           </Button>
         </VStack>
