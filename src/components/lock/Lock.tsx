@@ -18,15 +18,13 @@ import { ChangeEventHandler, useEffect, useState, useMemo } from 'react';
 import { addDate, formatDate, getDaysDiff } from '@/utils/date';
 import { lockDays, percents, votingPower } from '@/config/lock';
 import { Duration } from 'date-fns';
-import {
-  useErc20BalanceOf,
-  useVeTokenApprove,
-  useVeTokenCreateLock,
-} from '@/lib/equilibre';
+import { useErc20BalanceOf, writeErc20 } from '@/lib/equilibre';
+import callContractWait from '@/lib/callContractWait';
 import { useAccount } from 'wagmi';
 import { useLockStore } from '@/store/lockStore';
 import {
   GOV_TOKEN_ADDRESS,
+  VE_TOKEN_ABI,
   VE_TOKEN_ADDRESS,
 } from '@/config/company/contracts';
 import { ethers } from 'ethers';
@@ -46,8 +44,6 @@ const Lock = () => {
     address: GOV_TOKEN_ADDRESS,
     args: [address!],
   });
-  const { writeAsync: createLock } = useVeTokenCreateLock();
-  const { data, writeAsync: approveVeToken } = useVeTokenApprove();
   const balance = useMemo(() => {
     return Number(ethers.utils.formatUnits(balanceData || 0, 'ether'));
   }, [balanceData]);
@@ -76,9 +72,30 @@ const Lock = () => {
   };
 
   const onSubmit = async () => {
-    const gweiAmount = ethers.utils.parseUnits(balance.toString(), 'ether');
+    const parsedAmount = ethers.utils.parseUnits(balance.toString(), 'ether');
     const seconds = BigInt(days * 86400);
-    await createLock({ args: [BigInt(gweiAmount.toString()), seconds] });
+    try {
+      await writeErc20({
+        address: GOV_TOKEN_ADDRESS,
+        functionName: 'approve',
+        args: [VE_TOKEN_ADDRESS, BigInt(Number(parsedAmount))],
+      });
+
+      await callContractWait(
+        {
+          address: VE_TOKEN_ADDRESS,
+          abi: VE_TOKEN_ABI,
+          functionName: 'create_lock',
+          args: [BigInt(Number(parsedAmount)), seconds],
+        },
+        {
+          title: 'Create Lock',
+          description: 'Create Lock successfully',
+        }
+      );
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
@@ -175,7 +192,7 @@ const Lock = () => {
           <HStack width={'full'} justifyContent={'space-between'}>
             <Text color={'gray.500'}>Your votingpower will be</Text>
             <Text color={'green.500'}>
-              {((amount * days) / votingPower).toFixed(2)} veBARA
+              {((amount * days) / votingPower).toFixed(2)} veVARA
             </Text>
           </HStack>
           <HStack width={'full'} justifyContent={'space-between'}>
