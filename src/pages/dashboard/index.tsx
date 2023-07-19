@@ -13,16 +13,25 @@ import { theme as defaultTheme } from '@chakra-ui/theme';
 import moment from 'moment';
 
 import { CONSTANTS_VEVARA } from '@/config/constants';
-import { ILockDuration, IInputPercentage } from '@/interfaces';
+import { ILockDuration, IInputPercentage, Token } from '@/interfaces';
 import generateToast from '@/components/toast/generateToast';
+import { useBaseAssetStore } from '@/store/baseAssetsStore';
+import { GOV_TOKEN_ADDRESS } from '@/config/company/contracts';
+import useVaraBalance from '@/hooks/useVaraBalance';
+import { getBalanceInEther } from '@/utils/formatBalance';
 
 const { VALUE_PRECENTAGES, LOCK_DURATIONS } = CONSTANTS_VEVARA;
 
 const Dashboard = () => {
-  const [lockAmount, setLockAmouont] = useState<string>();
+  const [lockAmount, setLockAmouont] = useState<string>('');
   const [unlockDate, setUnlockDate] = useState<string>();
+  const [varaPrice, setVaraPrice] = useState<number>(0);
 
-  const userVaraBalance = 100;
+  const { baseAssets } = useBaseAssetStore(state => ({
+    baseAssets: state.baseAssets,
+  }));
+  const userVaraBalanceInWei = useVaraBalance();
+  const userVaraBalance = getBalanceInEther(userVaraBalanceInWei);
 
   const lockedDays = Math.floor(
     moment.duration(moment(unlockDate).diff(moment())).asDays()
@@ -32,6 +41,16 @@ const Dashboard = () => {
   useEffect(() => {
     onSelectLockDuration(LOCK_DURATIONS[3]);
   }, []);
+
+  useEffect(() => {
+    const varaAsset: Token | undefined = baseAssets.find(
+      (row: Token) =>
+        row.address.toLowerCase() === GOV_TOKEN_ADDRESS.toLowerCase()
+    );
+    if (varaAsset) {
+      setVaraPrice(Number(varaAsset?.price) || 0);
+    }
+  }, [baseAssets.length]);
 
   // select vaule percentage
   const onSelectValuePercentage = (newValuePercentage: IInputPercentage) => {
@@ -100,8 +119,6 @@ const Dashboard = () => {
           </Box>
           <Flex gap={'7px'}>
             {VALUE_PRECENTAGES.map((row: IInputPercentage) => {
-              const percentage = row.value;
-
               return (
                 <Button
                   key={row.value}
@@ -127,7 +144,9 @@ const Dashboard = () => {
           background="rgba(31, 46, 100, 0.50)"
           padding="22px 20px">
           <Flex justifyContent="end">
-            <Text fontSize="10px" letterSpacing="1.3px">{`Balance: 0.00`}</Text>
+            <Text fontSize="10px" letterSpacing="1.3px">
+              {`Balance: ${userVaraBalance.toFixed(2)}`}
+            </Text>
           </Flex>
           <Flex justifyContent={'space-between'} alignItems={'center'} mt="8px">
             <Box>
@@ -147,7 +166,7 @@ const Dashboard = () => {
                 letterSpacing="1.3px"
                 color="rgba(255, 255, 255, 0.50)"
                 mt="4px">
-                {`$0.00`}
+                {`$${(Number(lockAmount) * varaPrice).toFixed(2)}`}
               </Text>
             </Box>
             <Flex
