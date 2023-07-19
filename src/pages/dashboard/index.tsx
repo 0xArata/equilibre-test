@@ -218,7 +218,11 @@ const Dashboard = () => {
               {`Balance: ${userVaraBalance.toFixed(2)}`}
             </Text>
           </Flex>
-          <Flex justifyContent={'space-between'} alignItems={'center'} mt="8px">
+          <Flex
+            justifyContent={'space-between'}
+            alignItems={'center'}
+            mt="8px"
+            gap="16px">
             <Box>
               <Input
                 isInvalid={lockAmountInWei.gt(userVaraBalanceInWei)}
@@ -258,8 +262,10 @@ const Dashboard = () => {
               borderRadius="20px"
               padding="6px 19px 6px 8px"
               alignItems="center">
-              <Image w="28px" src="/images/VARA.svg" />
-              <Text color="yellow.500">VARA</Text>
+              <Image w="28px" minW="24px" src="/images/VARA.svg" />
+              <Text color="yellow.500" display={['none', 'block']}>
+                VARA
+              </Text>
             </Flex>
           </Flex>
         </Box>
