@@ -1,3 +1,4 @@
+import { useAccount } from 'wagmi';
 import useIsMounted from '@/hooks/useIsMounted';
 import { useBaseAssetStore } from '@/store/baseAssetsStore';
 import { usePairStore } from '@/store/pairsStore';
@@ -24,12 +25,14 @@ import { EquilibreConnect } from '../core/ConnectButton';
 import MobileNavigation from './MobileNavigation';
 import Navigation from './Navigation';
 import { useGlobalStateStore } from '@/store/globalStore';
+import { useVaraTokenStore } from '@/store/varaTokenStore';
 
 type LayoutProps = {
   children?: React.ReactNode;
 };
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { address, isConnected } = useAccount();
   const isDesktop = useBreakpointValue({ base: false, lg: true });
   const mounted = useIsMounted();
   const { initBaseAssets, isLoading } = useBaseAssetStore(state => ({
@@ -43,11 +46,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     initGlobalData: state.actions.initGlobalData,
   }));
 
+  const { fetBalanceAndAllowance } = useVaraTokenStore(state => ({
+    fetBalanceAndAllowance: state.actions.fetBalanceAndAllowance,
+  }));
+
   useEffect(() => {
     initBaseAssets();
     initPairs();
     initGlobalData();
   }, []);
+
+  useEffect(() => {
+    fetBalanceAndAllowance(address);
+  }, [address, isConnected]);
+
   return mounted ? (
     <>
       <Box as="section" pb={{ base: '2', md: '4' }} textColor={'white'}>
