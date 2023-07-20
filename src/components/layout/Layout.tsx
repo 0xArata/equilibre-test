@@ -55,10 +55,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <HStack mx={['0', '0', '12']} justify="space-around">
             <Image
               w="3xs"
-              // htmlWidth={'20%'}
               py={'6'}
               objectFit="contain"
-              src="/images/equilibre-logo.png"></Image>
+              src="/images/equilibre-logo.png"
+            />
 
             <Navigation />
             {isDesktop && <EquilibreConnect mobile={false} />}
@@ -103,7 +103,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </Box>
       <Container
         maxW={'container.xl'}
-        // h={'80vh'}
+        h={'75vh'}
         py={'20'}
         justifyContent={'center'}
         alignItems={'center'}
