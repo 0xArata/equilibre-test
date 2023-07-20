@@ -86,7 +86,7 @@ export const EquilibreConnect = (mobile: any) => {
                       bg: 'blue.500',
                     }}>
                     <Text fontSize={'xs'} color={'yellow.500'}>
-                    {account.displayName}
+                      {account.displayName}
                     </Text>
                     <WalletIcon w={'6'} h={'6'} />
                   </Button>
