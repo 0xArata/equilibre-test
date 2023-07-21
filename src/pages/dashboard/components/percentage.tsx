@@ -1,5 +1,5 @@
 import { DurationT } from '@/utils/data';
-import { Button, ButtonProps, Text } from '@chakra-ui/react';
+import { Button, ButtonProps } from '@chakra-ui/react';
 import { FC } from 'react';
 
 interface Props extends ButtonProps {
@@ -8,7 +8,7 @@ interface Props extends ButtonProps {
   onClick: () => void;
 }
 
-export const DurationBtn: FC<Props> = ({
+export const PercentageBtns: FC<Props> = ({
   data,
   isSelected,
   onClick,
@@ -23,12 +23,16 @@ export const DurationBtn: FC<Props> = ({
 
   return (
     <Button
-      w="7rem"
+      colorScheme="yellow"
+      fontSize="0.9rem"
+      w="2rem"
+      h="2rem"
+      px={6}
       value={_value}
       style={buttonStyle}
-      onClick={onClick}
-      {...rest}>
-      <Text fontSize={{ base: '0.9rem', lg: '1rem' }}>{_text}</Text>
+      variant={'outline'}
+      onClick={onClick}>
+      {_text}%
     </Button>
   );
 };

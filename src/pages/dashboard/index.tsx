@@ -1,4 +1,4 @@
-import { DurationData } from '@/utils/data';
+import { DurationData, PercentageData } from '@/utils/data';
 import {
   Avatar,
   Box,
@@ -9,32 +9,19 @@ import {
   Input,
   Text,
 } from '@chakra-ui/react';
-import { FC, useEffect, useState } from 'react';
-import { DurationBtn } from './duration';
-import {
-  useAccount,
-  useBalance,
-  useContractWrite,
-  usePrepareContractWrite,
-  useWaitForTransaction,
-} from 'wagmi';
-import { TypeWallet } from './type';
-import {
-  GOV_TOKEN_LOGO,
-  GOV_TOKEN_SYMBOL,
-  VE_TOKEN_ABI,
-  VE_TOKEN_ADDRESS,
-} from '@/config/company/contracts';
-import { StackItemContainer, StackTexts } from './StackLayout';
+import { FC, useState } from 'react';
+import { DurationBtn } from './components/duration';
+import { GOV_TOKEN_LOGO, GOV_TOKEN_SYMBOL } from '@/config/company/contracts';
+import { StackItemContainer, StackTexts } from './components/stackLayout';
 import Link from 'next/link';
+import { PercentageBtns } from './components/percentage';
+import { useVaraBalance } from '../../hooks/varaBalance';
 
 const Dashboard: FC = () => {
   // State for user's input
   const [lockAmount, setLockAmount] = useState<bigint | undefined>();
   const [lockDuration, setLockDuration] = useState<number | undefined>();
 
-  // state for balance and locking
-  const [balance, setBalance] = useState(0);
   const [lockAmountError, setLockAmountError] = useState('');
   const [lockDurationError, setLockDurationError] = useState('');
 
@@ -44,59 +31,17 @@ const Dashboard: FC = () => {
   // State to track error
   const [error, setError] = useState<string | null>(null);
 
-  // State to track the currently selected duration
+  // State to track the currently selected duration and percentage
   const [selectedDuration, setSelectedDuration] = useState<
     number | undefined
   >();
+  const [selectedPercentage, setSelectedPercentage] = useState<number | null>(
+    null
+  );
 
-  const { address } = useAccount();
-
-  const {
-    data: balanceData,
-    isIdle,
-    isLoading: isBalanceLoading,
-  }: TypeWallet = useBalance({
-    address,
-  });
-
-  const {
-    config,
-    error: prepareError,
-    isError: isPrepareError,
-  } = usePrepareContractWrite({
-    address: VE_TOKEN_ADDRESS,
-    abi: VE_TOKEN_ABI,
-    functionName: 'create_lock',
-    args: [lockAmount, lockDuration],
-    enabled: Boolean(lockAmount) && Boolean(lockDuration),
-  });
-
-  const {
-    data,
-    error: writeError,
-    isError: isWriteError,
-    write,
-  } = useContractWrite(config);
-
-  const { isLoading, isSuccess } = useWaitForTransaction({
-    hash: data?.hash,
-  });
-
-  useEffect(() => {
-    if (balanceData) {
-      setBalance(Number(balanceData.value));
-    }
-  }, [balanceData]);
-
-  useEffect(() => {
-    if (lockAmount && lockDuration) {
-      const lockDurationInYears = lockDuration / 365;
-      const newExpectedVeVara = Number(lockAmount) * (lockDurationInYears / 4);
-      setExpectedVeVara(newExpectedVeVara);
-    }
-  }, [lockAmount, lockDuration]);
-
+  const balance = useVaraBalance();
   const items = Object.values(DurationData);
+  const percent = Object.values(PercentageData);
 
   const handleLockAmountChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -105,6 +50,11 @@ const Dashboard: FC = () => {
     if (val >= BigInt(0)) {
       setLockAmountError('');
       setLockAmount(val);
+      if (lockDuration) {
+        const lockDurationInYears = lockDuration / 365;
+        const newExpectedVeVara = Number(val) * (lockDurationInYears / 4);
+        setExpectedVeVara(newExpectedVeVara);
+      }
     } else {
       setLockAmountError('Invalid lock amount');
     }
@@ -134,7 +84,9 @@ const Dashboard: FC = () => {
   };
 
   const handleLockAmountPercentage = (percentage: number) => {
-    const amount = balance * (percentage / 100);
+    // Store the selected percentage
+    setSelectedPercentage(percentage);
+    const amount = balance * percentage;
     setLockAmount(BigInt(Math.floor(amount)));
     if (lockDuration) {
       const lockDurationInYears = lockDuration / 365;
@@ -147,6 +99,12 @@ const Dashboard: FC = () => {
   const handleDurationBtnClick = (duration: number) => {
     setLockDuration(duration);
     setSelectedDuration(duration);
+
+    if (lockAmount) {
+      const lockDurationInYears = duration / 365;
+      const newExpectedVeVara = Number(lockAmount) * (lockDurationInYears / 4);
+      setExpectedVeVara(newExpectedVeVara);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -158,15 +116,6 @@ const Dashboard: FC = () => {
       setError('Invalid lock amount');
       return;
     }
-
-    if (write) {
-      try {
-        // Calling the contract write function to create a new lock and trigger the newNFT
-        await write();
-      } catch (err) {
-        setError(err.message);
-      }
-    }
   };
 
   return (
@@ -174,9 +123,11 @@ const Dashboard: FC = () => {
       display="flex"
       flexDir="column"
       padding={6}
-      w={{ base: '24rem', md: '', lg: '30rem' }}
+      w={{ base: '24rem', md: '', lg: '33rem' }}
+      h={{ lg: '37rem' }}
       border="1px solid"
-      borderRadius="15px">
+      borderRadius="30px"
+      background="linear-gradient(155deg, rgba(13, 20, 46, 0.20) 71.88%, rgba(205, 116, 204, 0.10) 100%)">
       <form onSubmit={handleSubmit}>
         <FormControl>
           <StackItemContainer>
@@ -184,29 +135,28 @@ const Dashboard: FC = () => {
               <Button as={Link} href="/">
                 {'<'}
               </Button>
-              <Flex justifyContent="space-between" w="13rem">
-                {[25, 50, 75, 100].map((percentage, i) => (
-                  <Button
-                    key={i}
-                    w="2rem"
-                    h="2rem"
-                    fontSize="0.7rem"
-                    onClick={() => handleLockAmountPercentage(percentage)}>
-                    {percentage}%
-                  </Button>
-                ))}
+              <Flex justifyContent="space-between" w="15rem">
+                {percent.map((item, i) => {
+                  return (
+                    <PercentageBtns
+                      data={item}
+                      key={i}
+                      isSelected={item._value === selectedPercentage}
+                      onClick={() => handleLockAmountPercentage(item._value)}
+                    />
+                  );
+                })}
               </Flex>
             </Flex>
             <Box
               display="flex"
               flexDir="column"
-              border="0.5px"
-              borderRadius="15px"
-              borderColor="blue.200"
-              backgroundColor="blue.500"
+              border="1px solid #273977"
+              borderRadius="10px"
+              backgroundColor="rgba(31, 46, 100, 0.50)"
               fontSize="1rem"
               padding={4}>
-              <Text textAlign="end">Balance: {balanceData?.formatted}</Text>
+              <Text textAlign="end">Balance: {balance}</Text>
               <Flex justifyContent="space-between" alignItems="center">
                 <Flex flexDir="column">
                   <Input
@@ -228,12 +178,11 @@ const Dashboard: FC = () => {
                     }}
                     value={lockAmount ? lockAmount.toString() : ''}
                     onChange={e => handleLockAmountChange(e)}
-                    disabled={isLoading || isIdle || Boolean(lockAmountError)}
                   />
                   {lockAmountError && (
                     <Text color="red">{lockAmountError}</Text>
                   )}
-                  <Text color="grey" fontSize="1rem">
+                  <Text color="grey" fontSize="0.9rem">
                     ${0.0}
                   </Text>
                 </Flex>
@@ -259,7 +208,8 @@ const Dashboard: FC = () => {
               <Text>Select Expiry Date: </Text>
               <Input
                 type="date"
-                w={{ lg: '12rem' }}
+                w={{ lg: '17rem' }}
+                h={{ lg: '3.6rem' }}
                 onChange={handleLockDurationChange}
               />
               {lockDurationError && (
@@ -281,15 +231,31 @@ const Dashboard: FC = () => {
             <Divider />
             <StackTexts>
               <Flex justifyContent="space-between" alignItems="center">
-                <Text>Your voting power will be</Text>
-                <Text>{expectedVeVara} veVARA</Text>
+                <Text
+                  fontFamily="littleText"
+                  fontSize="15px"
+                  letterSpacing="1.95px">
+                  Your voting power will be
+                </Text>
+                <Text fontSize="15px" color="#70DD88">
+                  {expectedVeVara.toFixed(2)} veVARA
+                </Text>
               </Flex>
               <Flex justifyContent="space-between" alignItems="center">
-                <Text>Amount of days locked</Text>
-                <Text>{lockDuration ? lockDuration.toString() : '0'} days</Text>
+                <Text
+                  fontFamily="littleText"
+                  fontSize="15px"
+                  letterSpacing="1.95px">
+                  Amount of days locked
+                </Text>
+                <Text fontSize="15px" color="#70DD88">
+                  {lockDuration ? lockDuration.toString() : '0'} days
+                </Text>
               </Flex>
             </StackTexts>
             <Button
+              fontSize={{ lg: '1.6rem' }}
+              letterSpacing="3.25px"
               type="submit"
               w={{ base: '20rem', lg: '27rem' }}
               m="auto"
