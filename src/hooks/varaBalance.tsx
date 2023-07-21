@@ -1,10 +1,10 @@
-import { FC, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { fetchBalance } from '@wagmi/core';
 import { GOV_TOKEN_ADDRESS } from '@/config/company/contracts';
 
 export const useVaraBalance = () => {
-  // state for balance and locking
+  // state for balance
   const [balance, setBalance] = useState(0);
 
   const { address, isConnected } = useAccount();

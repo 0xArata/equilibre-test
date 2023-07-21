@@ -1,4 +1,4 @@
-import { DurationData, PercentageData } from '@/utils/data';
+import { DurationData } from '@/utils/data';
 import {
   Avatar,
   Box,
@@ -9,54 +9,54 @@ import {
   Input,
   Text,
 } from '@chakra-ui/react';
-import { FC, useState } from 'react';
+import { FC } from 'react';
 import { DurationBtn } from './components/duration';
-import { GOV_TOKEN_LOGO, GOV_TOKEN_SYMBOL } from '@/config/company/contracts';
 import { StackItemContainer, StackTexts } from './components/stackLayout';
 import Link from 'next/link';
-import { PercentageBtns } from './components/percentage';
 import { useVaraBalance } from '../../hooks/varaBalance';
+import { useLockState } from '@/hooks/lockState';
+import { PercentageSelector } from './components/percentageSelector';
+import { useBaseAssetStore } from '@/store/baseAssetsStore';
+import { CONTRACTS } from '@/config/company';
 
 const Dashboard: FC = () => {
-  // State for user's input
-  const [lockAmount, setLockAmount] = useState<bigint | undefined>();
-  const [lockDuration, setLockDuration] = useState<number | undefined>();
-
-  const [lockAmountError, setLockAmountError] = useState('');
-  const [lockDurationError, setLockDurationError] = useState('');
-
-  // State for expected veVARA
-  const [expectedVeVara, setExpectedVeVara] = useState(0);
-
-  // State to track error
-  const [error, setError] = useState<string | null>(null);
-
-  // State to track the currently selected duration and percentage
-  const [selectedDuration, setSelectedDuration] = useState<
-    number | undefined
-  >();
-  const [selectedPercentage, setSelectedPercentage] = useState<number | null>(
-    null
-  );
-
   const balance = useVaraBalance();
   const items = Object.values(DurationData);
-  const percent = Object.values(PercentageData);
+
+  const { getBaseAsset } = useBaseAssetStore(state => ({
+    getBaseAsset: state.actions.getBaseAsset,
+  }));
+
+  const GOV_TOKEN = getBaseAsset(CONTRACTS.GOV_TOKEN_ADDRESS);
+
+  const {
+    lockAmount,
+    setLockAmount,
+    lockDuration,
+    setLockDuration,
+    expectedVeVara,
+    setExpectedVeVara,
+    lockAmountError,
+    setLockAmountError,
+    lockDurationError,
+    setLockDurationError,
+    selectedDuration,
+    setSelectedDuration,
+    selectedPercentage,
+    setSelectedPercentage,
+    calculateNewExpectedVeVara,
+  } = useLockState();
 
   const handleLockAmountChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const val = BigInt(event.target.value);
     if (val >= BigInt(0)) {
-      setLockAmountError('');
       setLockAmount(val);
       if (lockDuration) {
-        const lockDurationInYears = lockDuration / 365;
-        const newExpectedVeVara = Number(val) * (lockDurationInYears / 4);
+        const newExpectedVeVara = calculateNewExpectedVeVara(val, lockDuration);
         setExpectedVeVara(newExpectedVeVara);
       }
-    } else {
-      setLockAmountError('Invalid lock amount');
     }
   };
 
@@ -73,9 +73,10 @@ const Dashboard: FC = () => {
       setLockDurationError('');
       setLockDuration(diffInDays);
       if (lockAmount) {
-        const lockDurationInYears = diffInDays / 365;
-        const newExpectedVeVara =
-          Number(lockAmount) * (lockDurationInYears / 4);
+        const newExpectedVeVara = calculateNewExpectedVeVara(
+          lockAmount,
+          diffInDays
+        );
         setExpectedVeVara(newExpectedVeVara);
       }
     } else {
@@ -84,38 +85,33 @@ const Dashboard: FC = () => {
   };
 
   const handleLockAmountPercentage = (percentage: number) => {
-    // Store the selected percentage
     setSelectedPercentage(percentage);
     const amount = balance * percentage;
     setLockAmount(BigInt(Math.floor(amount)));
     if (lockDuration) {
-      const lockDurationInYears = lockDuration / 365;
-      const newExpectedVeVara = amount * (lockDurationInYears / 4);
+      const newExpectedVeVara = calculateNewExpectedVeVara(
+        BigInt(Math.floor(amount)),
+        lockDuration
+      );
       setExpectedVeVara(newExpectedVeVara);
     }
   };
 
   // Function to handle duration button click
   const handleDurationBtnClick = (duration: number) => {
-    setLockDuration(duration);
     setSelectedDuration(duration);
-
+    setLockDuration(duration);
     if (lockAmount) {
-      const lockDurationInYears = duration / 365;
-      const newExpectedVeVara = Number(lockAmount) * (lockDurationInYears / 4);
+      const newExpectedVeVara = calculateNewExpectedVeVara(
+        lockAmount,
+        duration
+      );
       setExpectedVeVara(newExpectedVeVara);
     }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (lockAmountError || lockDurationError) {
-      return;
-    }
-    if (!lockAmount || lockAmount < BigInt(0)) {
-      setError('Invalid lock amount');
-      return;
-    }
   };
 
   return (
@@ -135,18 +131,10 @@ const Dashboard: FC = () => {
               <Button as={Link} href="/">
                 {'<'}
               </Button>
-              <Flex justifyContent="space-between" w="15rem">
-                {percent.map((item, i) => {
-                  return (
-                    <PercentageBtns
-                      data={item}
-                      key={i}
-                      isSelected={item._value === selectedPercentage}
-                      onClick={() => handleLockAmountPercentage(item._value)}
-                    />
-                  );
-                })}
-              </Flex>
+              <PercentageSelector
+                selectedPercentage={selectedPercentage}
+                handleLockAmountPercentage={handleLockAmountPercentage}
+              />
             </Flex>
             <Box
               display="flex"
@@ -168,6 +156,7 @@ const Dashboard: FC = () => {
                     type="number"
                     textAlign="left"
                     placeholder="0.0"
+                    w={{ base: '11rem', lg: '20rem' }}
                     fontSize={{ base: '1.7rem', md: '', lg: '1.5rem' }}
                     padding="0"
                     sx={{
@@ -182,8 +171,14 @@ const Dashboard: FC = () => {
                   {lockAmountError && (
                     <Text color="red">{lockAmountError}</Text>
                   )}
-                  <Text color="grey" fontSize="0.9rem">
-                    ${0.0}
+                  <Text
+                    color="grey"
+                    fontSize="0.9rem"
+                    w={{ base: '11rem', lg: '20rem' }}>
+                    $
+                    {GOV_TOKEN && lockAmount
+                      ? (Number(lockAmount) * +GOV_TOKEN.price).toFixed(4)
+                      : 0}
                   </Text>
                 </Flex>
                 <Box
@@ -198,9 +193,9 @@ const Dashboard: FC = () => {
                   <Avatar
                     border="1px solid orange"
                     size="sm"
-                    src={GOV_TOKEN_LOGO}
+                    src={GOV_TOKEN?.logoURI}
                   />
-                  {GOV_TOKEN_SYMBOL}
+                  {GOV_TOKEN?.symbol}
                 </Box>
               </Flex>
             </Box>
@@ -237,7 +232,7 @@ const Dashboard: FC = () => {
                   letterSpacing="1.95px">
                   Your voting power will be
                 </Text>
-                <Text fontSize="15px" color="#70DD88">
+                <Text fontSize="15px" color="#70DD88" textAlign="right">
                   {expectedVeVara.toFixed(2)} veVARA
                 </Text>
               </Flex>
@@ -248,7 +243,7 @@ const Dashboard: FC = () => {
                   letterSpacing="1.95px">
                   Amount of days locked
                 </Text>
-                <Text fontSize="15px" color="#70DD88">
+                <Text fontSize="15px" color="#70DD88" textAlign="right">
                   {lockDuration ? lockDuration.toString() : '0'} days
                 </Text>
               </Flex>
@@ -259,12 +254,12 @@ const Dashboard: FC = () => {
               type="submit"
               w={{ base: '20rem', lg: '27rem' }}
               m="auto"
+              py={6}
               mt={4}>
-              Create New veNFT
+              <Text>Create New veNFT</Text>
             </Button>
           </StackItemContainer>
         </FormControl>
-        {error && <Text>{error}</Text>}
       </form>
     </Box>
   );
