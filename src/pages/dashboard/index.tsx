@@ -9,109 +9,94 @@ import {
   Input,
   Text,
 } from '@chakra-ui/react';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { DurationBtn } from './components/duration';
 import { StackItemContainer, StackTexts } from './components/stackLayout';
 import Link from 'next/link';
-import { useVaraBalance } from '../../hooks/varaBalance';
-import { useLockState } from '@/hooks/lockState';
 import { PercentageSelector } from './components/percentageSelector';
-import { useBaseAssetStore } from '@/store/baseAssetsStore';
-import { CONTRACTS } from '@/config/company';
+import { VE_TOKEN_ABI, VE_TOKEN_ADDRESS } from '@/config/company/contracts';
+import { ethers } from 'ethers';
+import { useLockForm } from '@/hooks/lockForm';
+import { useToastMessages, useWeb3 } from '@/hooks/web3';
 
 const Dashboard: FC = () => {
-  const balance = useVaraBalance();
   const items = Object.values(DurationData);
-
-  const { getBaseAsset } = useBaseAssetStore(state => ({
-    getBaseAsset: state.actions.getBaseAsset,
-  }));
-
-  const GOV_TOKEN = getBaseAsset(CONTRACTS.GOV_TOKEN_ADDRESS);
+  const [isLoading, setIsLoading] = useState(false);
+  const { signer } = useWeb3();
+  const { showErrorToast, showSuccessToast } = useToastMessages();
 
   const {
     lockAmount,
-    setLockAmount,
+    validateAndSetLockAmount,
     lockDuration,
-    setLockDuration,
     expectedVeVara,
-    setExpectedVeVara,
     lockAmountError,
-    setLockAmountError,
     lockDurationError,
-    setLockDurationError,
     selectedDuration,
-    setSelectedDuration,
     selectedPercentage,
-    setSelectedPercentage,
-    calculateNewExpectedVeVara,
-  } = useLockState();
-
-  const handleLockAmountChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const val = BigInt(event.target.value);
-    if (val >= BigInt(0)) {
-      setLockAmount(val);
-      if (lockDuration) {
-        const newExpectedVeVara = calculateNewExpectedVeVara(val, lockDuration);
-        setExpectedVeVara(newExpectedVeVara);
-      }
-    }
-  };
-
-  const handleLockDurationChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const selectedDate = new Date(event.target.value);
-    const currentDate = new Date();
-    const diffInMilliseconds = Math.abs(
-      selectedDate.getTime() - currentDate.getTime()
-    );
-    const diffInDays = Math.ceil(diffInMilliseconds / (1000 * 60 * 60 * 24));
-    if (diffInDays >= 0) {
-      setLockDurationError('');
-      setLockDuration(diffInDays);
-      if (lockAmount) {
-        const newExpectedVeVara = calculateNewExpectedVeVara(
-          lockAmount,
-          diffInDays
-        );
-        setExpectedVeVara(newExpectedVeVara);
-      }
-    } else {
-      setLockDurationError('Invalid lock duration');
-    }
-  };
-
-  const handleLockAmountPercentage = (percentage: number) => {
-    setSelectedPercentage(percentage);
-    const amount = balance * percentage;
-    setLockAmount(BigInt(Math.floor(amount)));
-    if (lockDuration) {
-      const newExpectedVeVara = calculateNewExpectedVeVara(
-        BigInt(Math.floor(amount)),
-        lockDuration
-      );
-      setExpectedVeVara(newExpectedVeVara);
-    }
-  };
-
-  // Function to handle duration button click
-  const handleDurationBtnClick = (duration: number) => {
-    setSelectedDuration(duration);
-    setLockDuration(duration);
-    if (lockAmount) {
-      const newExpectedVeVara = calculateNewExpectedVeVara(
-        lockAmount,
-        duration
-      );
-      setExpectedVeVara(newExpectedVeVara);
-    }
-  };
+    handleLockAmountPercentage,
+    handleDurationBtnClick,
+    handleLockDurationChange,
+    GOV_TOKEN,
+    balance,
+  } = useLockForm();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!lockAmount || !lockDuration || lockAmount <= 0 || lockDuration <= 0) {
+      showErrorToast({
+        title: 'Invalid input',
+        description: 'Please enter valid lock amount and future date',
+      });
+      return;
+    }
+
+    if (lockDurationError) {
+      showErrorToast({
+        title: 'Invalid input',
+        description: lockDurationError,
+      });
+      return;
+    }
+
+    const amount = BigInt(lockAmount);
+
+    if (amount > balance || amount <= 0) {
+      showErrorToast({
+        title: 'Invalid input',
+        description:
+          'Please enter a value less than or equal to your balance and greater than zero',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const contract = new ethers.Contract(
+        VE_TOKEN_ADDRESS,
+        VE_TOKEN_ABI,
+        signer
+      );
+
+      const res2 = await contract.create_lock(
+        ethers.BigNumber.from(lockAmount),
+        ethers.BigNumber.from(lockDuration),
+        {
+          gasLimit: 6000,
+        }
+      );
+
+      showSuccessToast({
+        title: 'Lock created',
+        description: `Lock created with tx hash: ${res2.transactionHash}`,
+      });
+    } catch (err) {
+      showErrorToast({
+        title: 'An error occurred',
+        description: err.message,
+      });
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -122,13 +107,21 @@ const Dashboard: FC = () => {
       w={{ base: '24rem', md: '', lg: '33rem' }}
       h={{ lg: '37rem' }}
       border="1px solid"
+      borderColor="rgba(205, 116, 204, 1)
+      rgba(255, 189, 89, 1)
+      rgba(112, 221, 136, 1)"
       borderRadius="30px"
       background="linear-gradient(155deg, rgba(13, 20, 46, 0.20) 71.88%, rgba(205, 116, 204, 0.10) 100%)">
       <form onSubmit={handleSubmit}>
         <FormControl>
           <StackItemContainer>
             <Flex justifyContent="space-between">
-              <Button as={Link} href="/">
+              <Button
+                as={Link}
+                href="/"
+                borderColor="rgba(205, 116, 204, 1)"
+                w="2rem"
+                h="2rem">
                 {'<'}
               </Button>
               <PercentageSelector
@@ -144,7 +137,9 @@ const Dashboard: FC = () => {
               backgroundColor="rgba(31, 46, 100, 0.50)"
               fontSize="1rem"
               padding={4}>
-              <Text textAlign="end">Balance: {balance}</Text>
+              <Text textAlign="end" fontSize="10px">
+                Balance: {balance}
+              </Text>
               <Flex justifyContent="space-between" alignItems="center">
                 <Flex flexDir="column">
                   <Input
@@ -166,7 +161,9 @@ const Dashboard: FC = () => {
                       },
                     }}
                     value={lockAmount ? lockAmount.toString() : ''}
-                    onChange={e => handleLockAmountChange(e)}
+                    onChange={e =>
+                      validateAndSetLockAmount(BigInt(e.target.value))
+                    }
                   />
                   {lockAmountError && (
                     <Text color="red">{lockAmountError}</Text>
@@ -207,9 +204,6 @@ const Dashboard: FC = () => {
                 h={{ lg: '3.6rem' }}
                 onChange={handleLockDurationChange}
               />
-              {lockDurationError && (
-                <Text color="red">{lockDurationError}</Text>
-              )}
             </Flex>
             <Flex justifyContent="space-between" gap={4}>
               {items.map((item, i) => {
@@ -255,7 +249,8 @@ const Dashboard: FC = () => {
               w={{ base: '20rem', lg: '27rem' }}
               m="auto"
               py={6}
-              mt={4}>
+              mt={4}
+              isLoading={isLoading}>
               <Text>Create New veNFT</Text>
             </Button>
           </StackItemContainer>
