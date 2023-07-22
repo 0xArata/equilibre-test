@@ -147,7 +147,7 @@ const theme = extendTheme({
   fonts: {
     heading: 'Righteous',
     body: 'Righteous',
-    // body: 'Arista',
+    littleText: 'Arista',
   },
   components,
 });
