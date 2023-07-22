@@ -30,8 +30,8 @@ export const useLockForm = () => {
     calculateNewExpectedVeVara,
   } = useLockState();
 
-  const validateAndSetLockAmount = (value: bigint) => {
-    if (value >= BigInt(0)) {
+  const validateAndSetLockAmount = (value: number) => {
+    if (value >= 0) {
       setLockAmount(value);
       setLockAmountError('');
     } else {
@@ -68,7 +68,7 @@ export const useLockForm = () => {
   const handleLockAmountPercentage = (percentage: number) => {
     setSelectedPercentage(percentage);
     const amount = balance * percentage;
-    validateAndSetLockAmount(BigInt(Math.floor(amount)));
+    validateAndSetLockAmount(Math.floor(amount));
   };
 
   const handleDurationBtnClick = (duration: number) => {

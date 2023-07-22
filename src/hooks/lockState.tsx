@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 export const useLockState = () => {
-  const [lockAmount, setLockAmount] = useState<bigint | undefined>();
+  const [lockAmount, setLockAmount] = useState<number | undefined>();
   const [lockDuration, setLockDuration] = useState<number | undefined>();
   const [expectedVeVara, setExpectedVeVara] = useState(0);
 
@@ -13,11 +13,11 @@ export const useLockState = () => {
   );
 
   const calculateNewExpectedVeVara = (
-    lockAmount: BigInt,
+    lockAmount: number,
     lockDuration: number
   ) => {
     const lockDurationInYears = lockDuration / 365;
-    return Number(lockAmount) * (lockDurationInYears / 4);
+    return lockAmount * (lockDurationInYears / 4);
   };
 
   return {

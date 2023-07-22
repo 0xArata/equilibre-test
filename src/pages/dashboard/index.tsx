@@ -18,6 +18,7 @@ import { VE_TOKEN_ABI, VE_TOKEN_ADDRESS } from '@/config/company/contracts';
 import { ethers } from 'ethers';
 import { useLockForm } from '@/hooks/lockForm';
 import { useToastMessages, useWeb3 } from '@/hooks/web3';
+import { CONTRACTS } from '@/config/company';
 
 const Dashboard: FC = () => {
   const items = Object.values(DurationData);
@@ -59,9 +60,14 @@ const Dashboard: FC = () => {
       return;
     }
 
-    const amount = BigInt(lockAmount);
+    const decimals = 18; // replace this with the number of decimals in your token
+    const amount = ethers.BigNumber.from(
+      (lockAmount * Math.pow(10, decimals)).toFixed(0) // convert lockAmount to a whole number
+    );
+    const lockDurationNumber = Number(lockDuration) * 24 * 60 * 60;
+    const balanceInWei = ethers.utils.parseUnits(balance.toString(), 'ether');
 
-    if (amount > balance || amount <= 0) {
+    if (amount.gt(balanceInWei) || amount.lte(ethers.constants.Zero)) {
       showErrorToast({
         title: 'Invalid input',
         description:
@@ -72,19 +78,28 @@ const Dashboard: FC = () => {
 
     setIsLoading(true);
     try {
-      const contract = new ethers.Contract(
+      // Create a new contract instance for the ERC20 token
+      const tokenContract = new ethers.Contract(
+        CONTRACTS.GOV_TOKEN_ADDRESS,
+        CONTRACTS.GOV_TOKEN_ABI,
+        signer
+      );
+
+      // Approve the VE token contract to spend `amount` of your ERC20 tokens
+      const approveTx = await tokenContract.approve(VE_TOKEN_ADDRESS, amount);
+
+      // Wait for the approve transaction to be mined
+      await approveTx.wait();
+
+      // Create a new contract instance for the VE token
+      const veContract = new ethers.Contract(
         VE_TOKEN_ADDRESS,
         VE_TOKEN_ABI,
         signer
       );
 
-      const res2 = await contract.create_lock(
-        ethers.BigNumber.from(lockAmount),
-        ethers.BigNumber.from(lockDuration),
-        {
-          gasLimit: 6000,
-        }
-      );
+      // Call the create_lock function
+      const res2 = await veContract.create_lock(amount, lockDurationNumber);
 
       showSuccessToast({
         title: 'Lock created',
@@ -96,7 +111,6 @@ const Dashboard: FC = () => {
         description: err.message,
       });
     }
-    setIsLoading(false);
   };
 
   return (
@@ -162,7 +176,7 @@ const Dashboard: FC = () => {
                     }}
                     value={lockAmount ? lockAmount.toString() : ''}
                     onChange={e =>
-                      validateAndSetLockAmount(BigInt(e.target.value))
+                      validateAndSetLockAmount(Number(e.target.value))
                     }
                   />
                   {lockAmountError && (
